@@ -62,6 +62,7 @@ function textBox:update(dt)
                     --click_sound:play()
                     self.selected = true
                     self.buttonCooldown = 0.1
+                    self.text = ""
                 end
             end
         end

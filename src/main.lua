@@ -21,7 +21,7 @@ function love.load()
     button_1_Text = "PLAY"
     buttons[1] = button.new({parent = UI, x = (WindowWidth/2)-(font:getWidth(button_1_Text)/2), y = (WindowHeight/2)-(font:getHeight()/2), text = button_1_Text, bgColor = {1,1,1,1}, static = true}) 
     button_2_Text = "START"
-    buttons[2] = button.new({parent = UI, x = (WindowWidth/2)-(font:getWidth(button_2_Text)/2), y = (WindowHeight/2)-(font:getHeight()/2)+font:getHeight(), text = button_2_Text, bgColor = {1,1,1,1}, static = true})
+    buttons[2] = button.new({parent = UI, x = (WindowWidth/2)-(font:getWidth(button_2_Text)/2), y = (WindowHeight/2)-(font:getHeight()/2)+font:getHeight()+2, text = button_2_Text, bgColor = {1,1,1,1}, static = true})
 
     textBoxs = {}
     blankText = "Input Nation Amount"
@@ -33,13 +33,13 @@ function love.load()
     label_2_text = "Generating Nations"
     labels[2] = label.new({parent = UI, x = (WindowWidth/2)-(font:getWidth(label_2_text)/2), y = ((WindowHeight/2)-(font:getHeight()/2)), text = label_2_text, bgColor = {0,0,0,0}, fgColor = {1,1,1,1}, static = true})
     label_3_text = "World Settings"
-    labels[3] = label.new({parent = UI, x = (WindowWidth/2)-(font:getWidth(label_3_text)/2), y = ((WindowHeight/2)-(font:getHeight()/2))-font:getHeight(), text = label_3_text, bgColor = {0,0,0,0}, fgColor = {1,1,1,1}, static = true})
+    labels[3] = label.new({parent = UI, x = (WindowWidth/2)-(font:getWidth(label_3_text)/2), y = ((WindowHeight/2)-(font:getHeight()/2))-font:getHeight()-2, text = label_3_text, bgColor = {0,0,0,0}, fgColor = {1,1,1,1}, static = true})
 
     nations = {}
 
     MouseCurrentTile = nil
 
-    nationAmount = 10
+    nationAmount = 0
 
     mainMenu = true
     loadingMap = false
@@ -79,12 +79,16 @@ function love.update(dt)
 
     elseif worldSettings == true then
         textBoxs[1]:update(dt)
+
         buttons[2]:update(dt)
         if buttons[2].pressed == true then
-            worldSettings = false
-            loadingMap = true
-            genLand = true
-            GenMap()
+            if not (tonumber(textBoxs[1].text) == nil) then
+                nationAmount = tonumber(textBoxs[1].text)
+                worldSettings = false
+                loadingMap = true
+                genLand = true
+                GenMap()
+            end
         end
     elseif loadingMap == true then
         if genLand == true then
@@ -154,6 +158,10 @@ function love.update(dt)
         end
         if love.keyboard.isDown("s") then
             World.y = World.y - 200 * dt
+        end
+
+        for i = 1, #nations do
+            nations[i]:update()
         end
     end
 end
