@@ -12,26 +12,33 @@ function tile.new(settings)
 
     self.type = settings.type or 1
 
+    self.nation = settings.nation
+
+    self.popCooldown = 0
+
+    self.color = {1,1,1,1}
+
     return self
 end
 
-function tile:draw()
-    if isinWindow(self) then
-        if self.type == 1 then
-            self.texture = waterTileTexture
-        elseif self.type == 2 then
-            self.texture = grassTileTexture
-        elseif self.type == 3 then
-            self.texture = sandTileTexture
-        elseif self.type == 0 then
-            self.texture = emptyTileTexture
-        end
+function tile:update(dt)
+end
 
-        love.graphics.setColor(1,1,1,1)
-        if (self.mouseOver == true) then
-            MouseCurrentTile = self
-        end
-        love.graphics.draw(self.texture, self.parent.x+(self.x*tileSize), self.parent.y+(self.y*tileSize), 0, tileSize/(self.texture:getWidth()), tileSize/(self.texture:getHeight()))
-        love.graphics.setColor(1,1,1,1)
+function tile:draw(offsetX, offsetY)
+    if self.type == 1 then
+        self.texture = waterTileTexture
+    elseif self.type == 2 then
+        self.texture = grassTileTexture
+    elseif self.type == 3 then
+        self.texture = sandTileTexture
+    elseif self.type == 4 then
+        self.texture = stoneTileTexture
+    elseif self.type == 0 then
+        self.texture = emptyTileTexture
     end
+
+    love.graphics.setColor(self.color)
+    love.graphics.draw(self.texture, offsetX+self.parent.x+(self.x*tileSize), offsetY+self.parent.y+(self.y*tileSize), 0, tileSize/(self.texture:getWidth()), tileSize/(self.texture:getHeight()))    
+
+    love.graphics.setColor(1,1,1,1)
 end

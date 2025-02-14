@@ -5,10 +5,11 @@ function loadTextures()
     grassTileTexture = love.graphics.newImage("assets/tiles/grass.png")
     emptyTileTexture = love.graphics.newImage("assets/tiles/air.png")
     sandTileTexture = love.graphics.newImage("assets/tiles/sand.png")
+    stoneTileTexture = love.graphics.newImage("assets/tiles/stone.png")
 
 end
 
-function isValidTilePos(x, y, Array2D)
+function isValidArrayPos(x, y, Array2D)
     if (y > #Array2D) or (y < 1) or (x > #Array2D[1]) or (x < 1) then
         return false
     else
@@ -55,15 +56,33 @@ function parseListString(stringList)
     return parsedCommand
 end
 
-function isinWindow(tile)
-    if (tile.x < WindowWidth)
-    and (tile.x+tileSize > 0)
-    and (tile.y < WindowHeight)
-    and (tile.y+tileSize > 0) then
+function isinWindow(chunk)
+    if (World.x+chunk.x < CurrentWindowWidth)
+    and (World.x+chunk.x+(tileSize*chunkSize) > -100)
+    and (World.y+chunk.y < CurrentWindowHeight)
+    and (World.y+chunk.y+(tileSize*chunkSize) > -100) then
         isInWindow = true
     else
         isInWindow = false
     end
 
     return isInWindow
+end
+
+function InitUI()
+    buttons = {}
+    button_1_Text = "PLAY"
+    buttons[1] = button.new({parent = UI, x = (WindowWidth/2)-(font:getWidth(button_1_Text)/2), y = (WindowHeight/2)-(font:getHeight()/2), text = button_1_Text, bgColor = {1,1,1,1}, static = true}) 
+    button_2_Text = "START"
+    buttons[2] = button.new({parent = UI, x = (WindowWidth/2)-(font:getWidth(button_2_Text)/2), y = (WindowHeight/2)-(font:getHeight()/2)+font:getHeight()+2, text = button_2_Text, bgColor = {1,1,1,1}, static = true})
+
+    textBoxs = {}
+    textBoxEmpty = "World Size"
+    textBoxs[1] = textBox.new({parent = UI, x = (WindowWidth/2)-(font:getWidth(textBoxEmpty)/2), y = (WindowHeight/2)-(font:getHeight()/2), text = textBoxEmpty, bgColor = {1,1,1,1}, static = true})
+
+    labels = {}
+    label_1_text = "Generating Map"
+    labels[1] = label.new({parent = UI, x = (WindowWidth/2)-(font:getWidth(label_1_text)/2), y = ((WindowHeight/2)-(font:getHeight()/2)), text = label_1_text, bgColor = {0,0,0,0}, fgColor = {1,1,1,1}, static = true})
+    label_3_text = "World Settings"
+    labels[3] = label.new({parent = UI, x = (WindowWidth/2)-(font:getWidth(label_3_text)/2), y = ((WindowHeight/2)-(font:getHeight()/2))-font:getHeight()-2, text = label_3_text, bgColor = {0,0,0,0}, fgColor = {1,1,1,1}, static = true})
 end

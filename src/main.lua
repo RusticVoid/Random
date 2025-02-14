@@ -4,86 +4,89 @@ require "utils"
 function love.load()
     math.randomseed(os.clock())
     WindowWidth, WindowHeight = love.window.getMode()
-    World = world.new({x = 100, y = 100})
+    
+    MapWidth = 10
+    MapHeight = 10
+    tileSize = 10
+    chunkSize = 16
+    World = world.new({x = ((-((MapWidth*(tileSize*chunkSize))/2))+(WindowWidth/2))-(tileSize*chunkSize), y = (-((MapHeight*(tileSize*chunkSize))/2))+(WindowHeight/2)-(tileSize*chunkSize)})
+
+    Player = player.new()
+    
     UI = ui.new({x = 0, y = 0})
 
     font = love.graphics.newFont("fonts/baseFont.ttf", 20)
     font:setFilter("nearest")
     love.graphics.setFont(font)
     loadTextures()
-    tileSize = 10
-    placingEntity = nil
+    debug = false
 
     worldEntities = {}
 
-    buttons = {}
+    InitUI()
 
-    button_1_Text = "PLAY"
-    buttons[1] = button.new({parent = UI, x = (WindowWidth/2)-(font:getWidth(button_1_Text)/2), y = (WindowHeight/2)-(font:getHeight()/2), text = button_1_Text, bgColor = {1,1,1,1}, static = true}) 
-    button_2_Text = "START"
-    buttons[2] = button.new({parent = UI, x = (WindowWidth/2)-(font:getWidth(button_2_Text)/2), y = (WindowHeight/2)-(font:getHeight()/2)+font:getHeight()+2, text = button_2_Text, bgColor = {1,1,1,1}, static = true})
-
-    textBoxs = {}
-    blankText = "Input Nation Amount"
-    textBoxs[1] = textBox.new({parent = UI, x = (WindowWidth/2)-(font:getWidth(blankText)/2), y = (WindowHeight/2)-(font:getHeight()/2), text = blankText, bgColor = {1,1,1,1}, static = true, width = font:getWidth(blankText)})
-
-    labels = {}
-    label_1_text = "Generating Map"
-    labels[1] = label.new({parent = UI, x = (WindowWidth/2)-(font:getWidth(label_1_text)/2), y = ((WindowHeight/2)-(font:getHeight()/2)), text = label_1_text, bgColor = {0,0,0,0}, fgColor = {1,1,1,1}, static = true})
-    label_2_text = "Generating Nations"
-    labels[2] = label.new({parent = UI, x = (WindowWidth/2)-(font:getWidth(label_2_text)/2), y = ((WindowHeight/2)-(font:getHeight()/2)), text = label_2_text, bgColor = {0,0,0,0}, fgColor = {1,1,1,1}, static = true})
-    label_3_text = "World Settings"
-    labels[3] = label.new({parent = UI, x = (WindowWidth/2)-(font:getWidth(label_3_text)/2), y = ((WindowHeight/2)-(font:getHeight()/2))-font:getHeight()-2, text = label_3_text, bgColor = {0,0,0,0}, fgColor = {1,1,1,1}, static = true})
-
-    nations = {}
+    selectedTextBox = nil
 
     MouseCurrentTile = nil
 
-    nationAmount = 0
-
     mainMenu = true
     loadingMap = false
-    loadingNations = false
+    gameRunning = false
+
+    viewingMode = 1
 end
 
 function GenMap()
-    MapWidth = 100
-    MapHeight = 100
-
     map = {}
-
     for y = 1, MapHeight do
         map[y] = {}
         for x = 1, MapWidth do
-            if math.random(1, 100) == 1 then
-                map[y][x] = tile.new({type = math.random(1, 2), parent = World, x = x, y = y})
-            else
-                map[y][x] = tile.new({type = 0, parent = World, x = x, y = y})
-            end
+            map[y][x] = chunk.new({parent = World, x = x*(chunkSize*tileSize), y = y*(chunkSize*tileSize)})
         end
     end
 end
 
 function love.update(dt)
+    GlobalDelta = dt
+    
+    CurrentWindowWidth, CurrentWindowHeight = love.window.getMode()
+    if (not (CurrentWindowWidth == WindowWidth)) or (not (CurrentWindowHeight == WindowHeight)) then
+        WindowWidth, WindowHeight = love.window.getMode()
+
+        InitUI()
+
+        if gameRunning == false then
+            World = world.new({x = ((-((MapWidth*(tileSize*chunkSize))/2))+(WindowWidth/2))-(tileSize*chunkSize), y = (-((MapHeight*(tileSize*chunkSize))/2))+(WindowHeight/2)-(tileSize*chunkSize)})
+        end
+    end
+
     mouseDelta = dt
     WindowWidth, WindowHeight = love.window.getMode()
     MouseX, MouseY = love.mouse.getPosition()
+    fps = love.timer.getFPS()
 
     if mainMenu == true then
         buttons[1]:update(dt)
         if buttons[1].pressed == true then
             mainMenu = false
             worldSettings = true
-            textBoxs[1].buttonCooldown = 0.5
+            textBoxs[1].buttonCooldown = 0.1
         end
-
     elseif worldSettings == true then
-        textBoxs[1]:update(dt)
-
         buttons[2]:update(dt)
+        textBoxs[1]:update(dt)
+        if textBoxs[1].selected == true then
+            selectedTextBox = textBoxs[1]
+        end
         if buttons[2].pressed == true then
             if not (tonumber(textBoxs[1].text) == nil) then
-                nationAmount = tonumber(textBoxs[1].text)
+                if (tonumber(textBoxs[1].text) < 10) then
+                    MapHeight = 10
+                    MapWidth = 10
+                else
+                    MapHeight = tonumber(textBoxs[1].text)
+                    MapWidth = tonumber(textBoxs[1].text)
+                end
                 worldSettings = false
                 loadingMap = true
                 genLand = true
@@ -93,15 +96,41 @@ function love.update(dt)
     elseif loadingMap == true then
         if genLand == true then
             emptyFound = false
-            for y = 1, MapHeight do
-                for x = 1, MapWidth do
-                    if map[y][x].type == 0 then
-                        emptyFound = true
-                        Nx = math.random(-1, 1)
-                        Ny = math.random(-1, 1)
-
-                        if (isValidTilePos(x+Nx, y+Ny, map)) and (not (map[y+Ny][x+Nx].type == 0)) then
-                            map[y][x].type = map[y+Ny][x+Nx].type
+            for ChunkY = 1, MapHeight do
+                for ChunkX = 1, MapWidth do
+                    for TileY = 1, chunkSize do
+                        for TileX = 1, chunkSize do
+                            
+                            if map[ChunkY][ChunkX].tiles[TileY][TileX].type == 0 then
+                                emptyFound = true
+                                Nx = math.random(-1, 1)
+                                Ny = math.random(-1, 1)
+                                
+                                if (isValidArrayPos(TileX+Nx, TileY+Ny, map[ChunkY][ChunkX].tiles)) and (not (map[ChunkY][ChunkX].tiles[TileY+Ny][TileX+Nx].type == 0)) then
+                                    map[ChunkY][ChunkX].tiles[TileY][TileX].type = map[ChunkY][ChunkX].tiles[TileY+Ny][TileX+Nx].type
+                                elseif not (isValidArrayPos(TileX+Nx, TileY+Ny, map[ChunkY][ChunkX].tiles)) then
+                                    if Nx == -1 then
+                                        if isValidArrayPos(ChunkX-1, ChunkY, map) then
+                                            map[ChunkY][ChunkX].tiles[TileY][TileX].type = map[ChunkY][ChunkX-1].tiles[TileY][chunkSize].type
+                                        end
+                                    end
+                                    if Nx == 1 then
+                                        if isValidArrayPos(ChunkX+1, ChunkY, map) then
+                                            map[ChunkY][ChunkX].tiles[TileY][TileX].type = map[ChunkY][ChunkX+1].tiles[TileY][1].type
+                                        end
+                                    end
+                                    if Ny == -1 then
+                                        if isValidArrayPos(ChunkX, ChunkY-1, map) then
+                                            map[ChunkY][ChunkX].tiles[TileY][TileX].type = map[ChunkY-1][ChunkX].tiles[chunkSize][TileX].type
+                                        end
+                                    end
+                                    if Ny == 1 then
+                                        if isValidArrayPos(ChunkX, ChunkY+1, map) then
+                                            map[ChunkY][ChunkX].tiles[TileY][TileX].type = map[ChunkY+1][ChunkX].tiles[1][TileX].type
+                                        end
+                                    end
+                                end
+                            end
                         end
                     end
                 end
@@ -111,68 +140,151 @@ function love.update(dt)
                 genLand = false
             end
         else
-            for y = 1, MapHeight do
-                for x = 1, MapWidth do
-                    if map[y][x].type == 2 then
-                        if (isValidTilePos(x, y+1, map)) and (map[y+1][x].type == 1) then
-                            map[y][x].type = 3
-                        end
-                        if (isValidTilePos(x, y-1, map)) and (map[y-1][x].type == 1) then
-                            map[y][x].type = 3
-                        end
-                        if (isValidTilePos(x+1, y, map)) and (map[y][x+1].type == 1) then
-                            map[y][x].type = 3
-                        end
-                        if (isValidTilePos(x-1, y, map)) and (map[y][x-1].type == 1) then
-                            map[y][x].type = 3
+
+            for ChunkY = 1, MapHeight do
+                for ChunkX = 1, MapWidth do
+                    for TileY = 1, chunkSize do
+                        for TileX = 1, chunkSize do
+                            if not (map[ChunkY][ChunkX].tiles[TileY][TileX].type == 3) then
+
+                                sameTileDown = true
+                                if (isValidArrayPos(TileX, TileY+1, map[ChunkY][ChunkX].tiles)) and (not (map[ChunkY][ChunkX].tiles[TileY+1][TileX].type == map[ChunkY][ChunkX].tiles[TileY][TileX].type)) then
+                                    sameTileDown = false
+                                elseif not (isValidArrayPos(TileX, TileY+1, map[ChunkY][ChunkX].tiles)) then
+                                    if isValidArrayPos(ChunkX, ChunkY+1, map) then
+                                        if not (map[ChunkY+1][ChunkX].tiles[1][TileX].type == map[ChunkY][ChunkX].tiles[TileY][TileX].type) then
+                                            sameTileDown = false
+                                        end
+                                    end
+                                end
+
+                                sameTileUp = true
+                                if (isValidArrayPos(TileX, TileY-1, map[ChunkY][ChunkX].tiles)) and (not (map[ChunkY][ChunkX].tiles[TileY-1][TileX].type == map[ChunkY][ChunkX].tiles[TileY][TileX].type)) then
+                                    sameTileUp = false
+                                elseif not (isValidArrayPos(TileX, TileY-1, map[ChunkY][ChunkX].tiles)) then
+                                    if isValidArrayPos(ChunkX, ChunkY-1, map) then
+                                        if not (map[ChunkY-1][ChunkX].tiles[chunkSize][TileX].type == map[ChunkY][ChunkX].tiles[TileY][TileX].type) then
+                                            sameTileUp = false
+                                        end
+                                    end
+                                end
+
+                                sameTileRight = true
+                                if (isValidArrayPos(TileX+1, TileY, map[ChunkY][ChunkX].tiles)) and (not (map[ChunkY][ChunkX].tiles[TileY][TileX+1].type == map[ChunkY][ChunkX].tiles[TileY][TileX].type)) then
+                                    sameTileRight = false
+                                elseif not (isValidArrayPos(TileX+1, TileY, map[ChunkY][ChunkX].tiles)) then
+                                    if isValidArrayPos(ChunkX+1, ChunkY, map) then
+                                        if not (map[ChunkY][ChunkX+1].tiles[TileY][1].type == map[ChunkY][ChunkX].tiles[TileY][TileX].type) then
+                                            sameTileRight = false
+                                        end
+                                    end
+                                end
+
+                                sameTileLeft = true
+                                if (isValidArrayPos(TileX-1, TileY, map[ChunkY][ChunkX].tiles)) and (not (map[ChunkY][ChunkX].tiles[TileY][TileX-1].type == map[ChunkY][ChunkX].tiles[TileY][TileX].type)) then
+                                    sameTileLeft = false
+                                elseif not (isValidArrayPos(TileX-1, TileY, map[ChunkY][ChunkX].tiles)) then
+                                    if isValidArrayPos(ChunkX-1, ChunkY, map) then
+                                        if not (map[ChunkY][ChunkX-1].tiles[TileY][chunkSize].type == map[ChunkY][ChunkX].tiles[TileY][TileX].type) then
+                                            sameTileLeft = false
+                                        end
+                                    end
+                                end
+
+                                sameTileAmount = 0
+                                if sameTileUp == true then
+                                    sameTileAmount = sameTileAmount + 1
+                                end
+                                if sameTileDown == true then
+                                    sameTileAmount = sameTileAmount + 1
+                                end
+                                if sameTileLeft == true then
+                                    sameTileAmount = sameTileAmount + 1
+                                end
+                                if sameTileRight == true then
+                                    sameTileAmount = sameTileAmount + 1
+                                end
+
+                                if sameTileAmount <= 1 then
+                                    if (isValidArrayPos(TileX-1, TileY, map[ChunkY][ChunkX].tiles)) and (not (map[ChunkY][ChunkX].tiles[TileY][TileX-1].type == map[ChunkY][ChunkX].tiles[TileY][TileX].type)) then
+                                    map[ChunkY][ChunkX].tiles[TileY][TileX].type = map[ChunkY][ChunkX].tiles[TileY][TileX-1].type
+                                    elseif not (isValidArrayPos(TileX-1, TileY, map[ChunkY][ChunkX].tiles)) then
+                                        if isValidArrayPos(ChunkX-1, ChunkY, map) then
+                                            if not (map[ChunkY][ChunkX-1].tiles[TileY][chunkSize].type == map[ChunkY][ChunkX].tiles[TileY][TileX].type) then
+                                                map[ChunkY][ChunkX].tiles[TileY][TileX].type = map[ChunkY][ChunkX-1].tiles[TileY][chunkSize].type
+                                            end
+                                        end
+                                    end
+                                end
+                            end
                         end
                     end
                 end
             end
 
-            if emptyFound == false then
-                loadingMap = false
-                loadingNations = true
+            for ChunkY = 1, MapHeight do
+                for ChunkX = 1, MapWidth do
+                    for TileY = 1, chunkSize do
+                        for TileX = 1, chunkSize do
+                            if map[ChunkY][ChunkX].tiles[TileY][TileX].type == 2 then
+                                if (isValidArrayPos(TileX, TileY+1, map[ChunkY][ChunkX].tiles)) and (map[ChunkY][ChunkX].tiles[TileY+1][TileX].type == 1) then
+                                    map[ChunkY][ChunkX].tiles[TileY][TileX].type = 3
+                                elseif not (isValidArrayPos(TileX, TileY+1, map[ChunkY][ChunkX].tiles)) then
+                                    if isValidArrayPos(ChunkX, ChunkY+1, map) then
+                                        if map[ChunkY+1][ChunkX].tiles[1][TileX].type == 1 then
+                                            map[ChunkY][ChunkX].tiles[TileY][TileX].type = 3
+                                        end
+                                    end
+                                end
+                                if (isValidArrayPos(TileX, TileY-1, map[ChunkY][ChunkX].tiles)) and (map[ChunkY][ChunkX].tiles[TileY-1][TileX].type == 1) then
+                                    map[ChunkY][ChunkX].tiles[TileY][TileX].type = 3
+                                elseif not (isValidArrayPos(TileX, TileY-1, map[ChunkY][ChunkX].tiles)) then
+                                    if isValidArrayPos(ChunkX, ChunkY-1, map) then
+                                        if map[ChunkY-1][ChunkX].tiles[chunkSize][TileX].type == 1 then
+                                            map[ChunkY][ChunkX].tiles[TileY][TileX].type = 3
+                                        end
+                                    end
+                                end
+                                if (isValidArrayPos(TileX+1, TileY, map[ChunkY][ChunkX].tiles)) and (map[ChunkY][ChunkX].tiles[TileY][TileX+1].type == 1) then
+                                    map[ChunkY][ChunkX].tiles[TileY][TileX].type = 3
+                                elseif not (isValidArrayPos(TileX+1, TileY, map[ChunkY][ChunkX].tiles)) then
+                                    if isValidArrayPos(ChunkX+1, ChunkY, map) then
+                                        if map[ChunkY][ChunkX+1].tiles[TileY][1].type == 1 then
+                                            map[ChunkY][ChunkX].tiles[TileY][TileX].type = 3
+                                        end
+                                    end
+                                end
+                                if (isValidArrayPos(TileX-1, TileY, map[ChunkY][ChunkX].tiles)) and (map[ChunkY][ChunkX].tiles[TileY][TileX-1].type == 1) then
+                                    map[ChunkY][ChunkX].tiles[TileY][TileX].type = 3
+                                elseif not (isValidArrayPos(TileX-1, TileY, map[ChunkY][ChunkX].tiles)) then
+                                    if isValidArrayPos(ChunkX-1, ChunkY, map) then
+                                        if map[ChunkY][ChunkX-1].tiles[TileY][chunkSize].type == 1 then
+                                            map[ChunkY][ChunkX].tiles[TileY][TileX].type = 3
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
             end
-        end
 
-    elseif loadingNations == true then
-        for i = 1, nationAmount do
-            randomTile = map[math.random(1, MapHeight)][math.random(1, MapWidth)]
-            while randomTile.type == 1 do
-                randomTile = map[math.random(1, MapHeight)][math.random(1, MapWidth)]
-            end
-            nations[#nations+1] = nation.new({color = {math.random(0, 100)/100, math.random(0, 100)/100, math.random(0, 100)/100, 0.8}})
-            nations[#nations].ownedTiles[#nations[#nations].ownedTiles+1] = randomTile
+            loadingMap = false
+            gameRunning = true
         end
-        loadingNations = false
-    else
-        if love.keyboard.isDown("a") then
-            World.x = World.x + 200 * dt
-        end
-        if love.keyboard.isDown("d") then
-            World.x = World.x - 200 * dt
-        end
-        if love.keyboard.isDown("w") then
-            World.y = World.y + 200 * dt
-        end
-        if love.keyboard.isDown("s") then
-            World.y = World.y - 200 * dt
-        end
-
-        for i = 1, #nations do
-            nations[i]:update()
-        end
+    elseif gameRunning == true then
+        Player:update(dt)
     end
 end
 
 function love.keypressed(key)
-    if textBoxs[1].selected == true then
-        if key == "backspace" then
-            textBoxs[1].text = textBoxs[1].text:sub(1, -2)
-        elseif key == "return" then
-        else
-            textBoxs[1].text = textBoxs[1].text..key
+    if not (selectedTextBox == nil) then
+        selectedTextBox.text = selectedTextBox.text..key
+    end
+    
+    if gameRunning == true then
+        if key == "f1" then
+            debug = not debug
         end
     end
 end
@@ -189,23 +301,6 @@ function love.mousereleased(x, y, button)
     end
 end
 
-function love.wheelmoved(x, y)
-    if (mainMenu == false) and (loadingMap == false) then
-        if y > 0 then
-            tileSize = tileSize + 50 * mouseDelta
-        elseif y < 0 then
-            tileSize = tileSize - 50 * mouseDelta
-        end
-
-        if tileSize < 1 then
-            tileSize = 1
-        end
-        if tileSize > 25 then
-            tileSize = 25
-        end
-    end
-end
-
 function love.draw()
     if mainMenu == true then
         buttons[1]:draw()
@@ -214,18 +309,22 @@ function love.draw()
         textBoxs[1]:draw()
         buttons[2]:draw()
     elseif loadingMap == true then
-        labels[1]:draw()
-    elseif loadingNations == true then
-        labels[2]:draw()
-    else
         for y = 1, MapHeight do
             for x = 1, MapWidth do
                 map[y][x]:draw()
             end
         end
-
-        for i = 1, #nations do
-            nations[i]:draw()
+        labels[1]:draw()
+    elseif gameRunning == true then
+        for y = 1, MapHeight do
+            for x = 1, MapWidth do
+                map[y][x]:draw()
+            end
         end
+        
+        Player:draw()
     end
+
+    love.graphics.setColor(1,1,1,1)
+    love.graphics.print(fps)
 end

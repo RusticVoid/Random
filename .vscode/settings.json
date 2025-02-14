@@ -3,6 +3,8 @@
         "love"
     ],
     "Lua.diagnostics.disable": [
-        "lowercase-global"
+        "lowercase-global",
+        "trailing-space",
+        "empty-block"
     ]
 }

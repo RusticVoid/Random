@@ -22,7 +22,7 @@ function textBox.new(settings)
 
     self.buttonCooldown = 0
 
-    self.width = settings.width
+    self.width = settings.width or font:getWidth(textBoxEmpty)
 
     return self
 end
