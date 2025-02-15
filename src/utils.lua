@@ -7,6 +7,8 @@ function loadTextures()
     sandTileTexture = love.graphics.newImage("assets/tiles/sand.png")
     stoneTileTexture = love.graphics.newImage("assets/tiles/stone.png")
 
+    ship_1 = love.graphics.newImage("assets/ships/ship_1.png")
+
 end
 
 function isValidArrayPos(x, y, Array2D)

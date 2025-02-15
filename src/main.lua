@@ -4,10 +4,11 @@ require "utils"
 function love.load()
     math.randomseed(os.clock())
     WindowWidth, WindowHeight = love.window.getMode()
+    loadTextures()
     
     MapWidth = 10
     MapHeight = 10
-    tileSize = 10
+    tileSize = 20
     chunkSize = 16
     World = world.new({x = ((-((MapWidth*(tileSize*chunkSize))/2))+(WindowWidth/2))-(tileSize*chunkSize), y = (-((MapHeight*(tileSize*chunkSize))/2))+(WindowHeight/2)-(tileSize*chunkSize)})
 
@@ -18,7 +19,6 @@ function love.load()
     font = love.graphics.newFont("fonts/baseFont.ttf", 20)
     font:setFilter("nearest")
     love.graphics.setFont(font)
-    loadTextures()
     debug = false
 
     worldEntities = {}
